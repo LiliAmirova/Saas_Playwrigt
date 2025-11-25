@@ -16,10 +16,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
       # Установление зависимостей
       - name: Install dependencies
-        run: |
+        run:
           python -m pip install --upgrade pip
           pip install playwright pytest
           playwright install --with-deps
@@ -30,7 +30,7 @@ jobs:
 
           # 4. Запустить тесты с allure
       - name: 🧪 Run tests with Allure
-        run: |
+        run:
             pytest --alluredir=allure-results
 
      #  Вывод списка автотестов
@@ -43,7 +43,7 @@ jobs:
 
       # 6. (Опционально) Генерация HTML отчета
       - name: 🎨 Generate Allure report
-        run: |
+        run:
             allure generate allure-results -o allure-report --clean
 
       # Загрузка артефактов (отчеты) после выполнения workflow
