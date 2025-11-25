@@ -1,6 +1,6 @@
 name: PW Tests
 
-run-name: ${{ github.actor }} is running autotests 🚀  #автор запуска тестов
+run-name: ${{ github.actor }} is running autotests 🚀  # автор запуска тестов
 
 on: [push, workflow_dispatch]
 
@@ -8,7 +8,7 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest   # запуск автотестов на удаленной виртуальной машине ubuntu
     steps:
-       # Шаг 1: Выгружается код, который будет прогоняться при пуше или любом изменении кода
+      # Шаг 1: Выгружается код, который будет прогоняться при пуше или любом изменении кода
       - name: Check out repository code
         uses: actions/checkout@v4
 
@@ -17,44 +17,39 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+
       # Установление зависимостей
       - name: Install dependencies
-        run:
+        run: |
           python -m pip install --upgrade pip
           pip install playwright pytest
           playwright install --with-deps
           pip install -r requirements.txt
-        # Добавить установку allure
+          # Добавить установку allure
           pip install allure-pytest
           pip install pytest-allure
 
-          # 4. Запустить тесты с allure
+      # Запустить тесты с allure
       - name: 🧪 Run tests with Allure
-        run:
-            pytest --alluredir=allure-results
+        run: |
+          pytest --alluredir=allure-results
 
-     #  Вывод списка автотестов
+      # Вывод списка автотестов (дублируется, оставьте один)
       - name: List Playwright tests
         run: pytest --collect-only
 
-       # Прогон автотестов
-      - name: List Playwright tests
-        run: pytest --collect-only
-
-      # 6. (Опционально) Генерация HTML отчета
+      # Генерация HTML отчета
       - name: 🎨 Generate Allure report
-        run:
-            allure generate allure-results -o allure-report --clean
+        run: |
+          allure generate allure-results -o allure-report --clean
 
       # Загрузка артефактов (отчеты) после выполнения workflow
-      - uses: actions/upload-artifact@v4
+      - name: 📊 Upload test reports
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
-          path: playwright-report/
-          #name: allure-results
-          #path: allure-results/
+          name: test-reports
+          path: |
+            allure-report/
+            allure-results/
           retention-days: 30
-
-
-
