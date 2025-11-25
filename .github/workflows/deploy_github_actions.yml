@@ -27,7 +27,6 @@ jobs:
           pip install -r requirements.txt
           # Добавить установку allure
           pip install allure-pytest
-          pip install pytest-allure
 
       # Запустить тесты с allure
       - name: 🧪 Run tests with Allure
