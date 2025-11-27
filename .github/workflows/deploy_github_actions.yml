@@ -47,6 +47,12 @@ jobs:
           allure_results: allure-results
           allure_report: allure-report
 
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'  # ТОЛЬКО для main ветки!
+        with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            publish_dir: ./allure-report
 
 
       - name: 📊 Upload Allure results
