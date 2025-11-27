@@ -19,7 +19,7 @@ class ResultsPage:
     OPTIONS_SINK_VALUE = "//td[text()='Опции']/following-sibling::td[1]"
     TOTAL_COST_VALUE = "//td[text()='Стоимость итоговая']/following-sibling::td[3]"
 
-    # Локаторы, которые появляются ПОСЛЕ нажатия
+    # Локаторы, которые появляются ПОСЛЕ нажатия ааа
 
     def __init__(self, page: Page):  # передаем page при создании
         self.page = page  # сохраняем локально
