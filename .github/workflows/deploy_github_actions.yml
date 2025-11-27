@@ -33,13 +33,13 @@ jobs:
           pytest tests/ --collect-only -v
 
       - name: 🧪 Run tests with Allure
-        run: |
-          pytest tests/ -v --alluredir=allure-results
         env:
           BASE_URL: ${{ secrets.BASE_URL }}
-          LOGIN: ${{ secrets.TEST_USER_LOGIN }}
-          PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-
+          TEST_USER_LOGIN: ${{ secrets.TEST_USER_LOGIN }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: |
+          pytest tests/ -v --alluredir=allure-results
+          
 
       - name: 📊 Upload Allure results
         uses: actions/upload-artifact@v4
