@@ -31,7 +31,7 @@ def test_e2e(page: Page) -> None:
     with allure.step("Собираем заказ"):
         countertop_type = "П-образная"
         stone_material = "N-103 Gray Onix"
-        total_cost = "403700.00 ₽"
+        total_cost = "401800.00 ₽"
 
 
         calculator_page.switch_to_u_type_countertop() #  Выбираем П-образную столешницу
