@@ -65,6 +65,13 @@ jobs:
             publish_dir: ./allure-report
             force_orphan: true
 
+      - name: Upload Allure report (HTML)
+        uses: actions/upload-artifact@v4
+        with:
+            name: allure-report
+            path: allure-report/
+            retention-days: 30
+
       - name: Show Report URL
         run: |
             echo "Allure report will be available at:"
