@@ -5,13 +5,10 @@ on: [push, workflow_dispatch]
 jobs:
   run-tests:
     runs-on: ubuntu-latest
-
-
     permissions:
-          contents: write
-          pages: write
-          id-token: write
-
+      contents: write
+      pages: write
+      id-token: write
 
     steps:
       - name: Check out repository code
@@ -31,16 +28,11 @@ jobs:
           pip install playwright pytest allure-pytest
           playwright install --with-deps
 
-      - name: Check project structure
+      - name: Install Allure CLI
         run: |
-          echo "Project structure:"
-          find . -name "*test*" -type f
-          find . -name "test_*.py" -type f
-          ls -la
-
-      - name: List available tests
-        run: |
-          pytest tests/ --collect-only -v
+          sudo wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+          sudo tar -zxvf allure-2.27.0.tgz -C /opt/
+          sudo ln -s /opt/allure-2.27.0/bin/allure /usr/bin/allure
 
       - name: 🧪 Run tests with Allure
         env:
@@ -51,37 +43,26 @@ jobs:
           pytest tests/ -v --alluredir=allure-results
 
       - name: Generate Allure report
-        uses: simple-elf/allure-report-action@master
-        if: always()
+        run: |
+          allure generate allure-results -o allure-report --clean
+
+      - name: Upload Allure report artifact
+        uses: actions/upload-artifact@v4
         with:
-          allure_results: allure-results
-          allure_report: allure-report
+          name: allure-report
+          path: allure-report/
+          retention-days: 30
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/main'  # ТОЛЬКО для main ветки!
+        if: github.ref == 'refs/heads/main'
         with:
-            github_token: ${{ secrets.GITHUB_TOKEN }}
-            publish_dir: ./allure-report
-            force_orphan: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+          force_orphan: true
 
-      - name: Upload Allure report (HTML)
-        uses: actions/upload-artifact@v4
-        with:
-            name: allure-report
-            path: allure-report/
-            retention-days: 30
-
-      - name: Show Report URL
+      - name: Show Report URLs
         run: |
-            echo "Allure report will be available at:"
-            echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
-
-
-      - name: 📊 Upload Allure results
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: allure-results
-          path: allure-results/
-          retention-days: 30
+          echo "📊 Allure Report URLs:"
+          echo "1. GitHub Pages: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "2. Artifact: Download from Actions artifacts after workflow completes"
