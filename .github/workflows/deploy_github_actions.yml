@@ -167,31 +167,31 @@ jobs:
           # Создаем файл с сообщением для Telegram
           TELEGRAM_MESSAGE="$EMOJI *Test Automation Report*
 
-         📊 *Test Results:*
-         ✅ Passed: $PASSED_TESTS
-         ❌ Failed: $FAILED_TESTS
-         ⚠️  Broken: $BROKEN_TESTS
-         ⏭️  Skipped: $SKIPPED_TESTS
-         📈 Total: $TOTAL_TESTS
-         🎯 Success Rate: $SUCCESS_RATE%
+📊 *Test Results:*
+✅ Passed: $PASSED_TESTS
+❌ Failed: $FAILED_TESTS
+⚠️  Broken: $BROKEN_TESTS
+⏭️  Skipped: $SKIPPED_TESTS
+📈 Total: $TOTAL_TESTS
+🎯 Success Rate: $SUCCESS_RATE%
 
-         🚨 *Status:* $TESTS_STATUS
+🚨 *Status:* $TESTS_STATUS
 
-         🌐 *Allure Report:*
-         https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+🌐 *Allure Report:*
+https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
 
-         🔗 *Workflow Details:*
-         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+🔗 *Workflow Details:*
+https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-         📝 *Branch:* ${{ github.ref_name }}
-         🏷️ *Commit:* ${{ github.event.head_commit.message }}"
+📝 *Branch:* ${{ github.ref_name }}
+🏷️ *Commit:* ${{ github.event.head_commit.message }}"
           
           # Если тестов нет, добавляем дополнительную информацию
           if [ $TOTAL_TESTS -eq 0 ]; then
             TELEGRAM_MESSAGE="$TELEGRAM_MESSAGE
 
-         📢 *Внимание:* Тесты не найдены в отчетах!
-          Проверьте логи выполнения тестов."
+📢 *Внимание:* Тесты не найдены в отчетах!
+Проверьте логи выполнения тестов."
           fi
           
           echo "$TELEGRAM_MESSAGE" > telegram_message.txt
@@ -235,30 +235,30 @@ jobs:
             echo "⚠️ Файл telegram_message.txt не найден"
             MESSAGE="❓ *Test Automation Report*
 
-         📊 *Test Results:*
-         ✅ Passed: 0
-         ❌ Failed: 0
-         ⚠️  Broken: 0
-         ⏭️  Skipped: 0
-         📈 Total: 0
-         🎯 Success Rate: 0%
+📊 *Test Results:*
+✅ Passed: 0
+❌ Failed: 0
+⚠️  Broken: 0
+⏭️  Skipped: 0
+📈 Total: 0
+🎯 Success Rate: 0%
 
-         🚨 *Status:* NO TESTS ⚠️
+🚨 *Status:* NO TESTS ⚠️
 
-         🌐 *Allure Report:*
-         https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+🌐 *Allure Report:*
+https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
 
-         🔗 *Workflow Details:*
-         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+🔗 *Workflow Details:*
+https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-         📝 *Branch:* ${{ github.ref_name }}
-         🏷️ *Commit:* ${{ github.event.head_commit.message }}
+📝 *Branch:* ${{ github.ref_name }}
+🏷️ *Commit:* ${{ github.event.head_commit.message }}
 
-         📢 *Внимание:* Ошибка при расчете статистики!"
+📢 *Внимание:* Ошибка при расчете статистики!"
           fi
-          
+
           echo "Длина сообщения: ${#MESSAGE} символов"
-          
+
           # Отправляем через curl
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
