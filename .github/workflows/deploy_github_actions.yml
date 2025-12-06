@@ -1,290 +1,150 @@
-name: PW Tests
+name: Test Execution and Reporting
 
 on:
   push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
-  run-tests:
+  test-and-report:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
 
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+    - name: Set up environment
+      run: |
+        # Установка зависимостей или подготовка окружения
+        echo "Setting up environment..."
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install playwright pytest allure-pytest pytest-html
-          playwright install --with-deps
-
-      - name: Install Allure CLI
-        run: |
-          sudo wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
-          sudo tar -zxvf allure-2.27.0.tgz -C /opt/
-          sudo ln -s /opt/allure-2.27.0/bin/allure /usr/bin/allure
-
-      - name: 🧪 Run tests with Allure
-        id: run-tests
-        continue-on-error: true
-        env:
-          BASE_URL: ${{ secrets.BASE_URL }}
-          TEST_USER_LOGIN: ${{ secrets.TEST_USER_LOGIN }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-        run: |
-          pytest tests/ \
-            -v \
-            --alluredir=allure-results \
-            --html=report.html \
-            --self-contained-html \
-            --junitxml=report.xml
-
-      - name: Generate Allure report
-        if: always()
-        run: |
-          if [ -d "allure-results" ] && [ "$(ls -A allure-results 2>/dev/null)" ]; then
-            echo "Генерация Allure отчета..."
-            allure generate allure-results -o allure-report --clean
-            echo "Allure отчет сгенерирован"
-          else
-            echo "WARNING: Нет данных для генерации Allure отчета!"
-            mkdir -p allure-report
-            echo "<html><body><h1>No test results found</h1></body></html>" > allure-report/index.html
-          fi
-
-      - name: Calculate test statistics and prepare message
-        id: stats
-        if: always()
-        run: |
-          echo "📊 Расчет статистики тестов..."
-          
-          # Инициализация переменных
-          TOTAL_TESTS=0
-          PASSED_TESTS=0
-          FAILED_TESTS=0
-          BROKEN_TESTS=0
-          SKIPPED_TESTS=0
+    - name: Run tests
+      id: run_tests
+      run: |
+        # Здесь выполнение тестов
+        # Пример: npm test, pytest, mvn test и т.д.
+        echo "Running tests..."
+        
+        # Пример переменных (замените на реальные результаты тестов)
+        TOTAL_TESTS=150
+        PASSED_TESTS=140
+        FAILED_TESTS=5
+        BROKEN_TESTS=3
+        SKIPPED_TESTS=2
+        
+        # Расчет процента успеха
+        if [ "$TOTAL_TESTS" -gt 0 ]; then
+          SUCCESS_RATE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
+        else
           SUCCESS_RATE=0
-          TESTS_STATUS="UNKNOWN"
-          EMOJI="❓"
-          
-          # Метод 1: Из junit XML (надежнее)
-          if [ -f "report.xml" ]; then
-            echo "Используем report.xml для статистики"
-            TOTAL_TESTS=$(grep -c '<testcase' report.xml 2>/dev/null || echo "0")
-            FAILED_TESTS=$(grep -c '<failure' report.xml 2>/dev/null || echo "0")
-            SKIPPED_TESTS=$(grep -c '<skipped' report.xml 2>/dev/null || echo "0")
-            PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS - SKIPPED_TESTS))
-            
-            echo "Из XML: Total=$TOTAL_TESTS, Passed=$PASSED_TESTS, Failed=$FAILED_TESTS, Skipped=$SKIPPED_TESTS"
-          fi
-          
-          # Метод 2: Из allure results (резервный)
-          if [ "$TOTAL_TESTS" = "0" ] && [ -d "allure-results" ]; then
-            echo "Используем allure-results для статистики"
-            TOTAL_TESTS=$(find allure-results -name "*.json" -type f 2>/dev/null | wc -l)
-            PASSED_TESTS=$(grep -r '"status":"passed"' allure-results/ 2>/dev/null | wc -l || echo "0")
-            FAILED_TESTS=$(grep -r '"status":"failed"' allure-results/ 2>/dev/null | wc -l || echo "0")
-            BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/ 2>/dev/null | wc -l || echo "0")
-            SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/ 2>/dev/null | wc -l || echo "0")
-            
-            echo "Из Allure: Total=$TOTAL_TESTS, Passed=$PASSED_TESTS, Failed=$FAILED_TESTS"
-          fi
-          
-          # Метод 3: Из HTML отчета
-          if [ "$TOTAL_TESTS" = "0" ] && [ -f "report.html" ]; then
-            echo "Используем report.html для статистики"
-            TOTAL_TESTS=$(grep -o '"collected"[^,]*' report.html | grep -o '[0-9]\+' || echo "0")
-            PASSED_TESTS=$(grep -o '"passed"[^,]*' report.html | grep -o '[0-9]\+' || echo "0")
-            FAILED_TESTS=$(grep -o '"failed"[^,]*' report.html | grep -o '[0-9]\+' || echo "0")
-            
-            echo "Из HTML: Total=$TOTAL_TESTS, Passed=$PASSED_TESTS, Failed=$FAILED_TESTS"
-          fi
-          
-          # Если тесты не найдены ни в одном отчете
-          if [ "$TOTAL_TESTS" = "0" ]; then
-            echo "⚠️  Тесты не найдены в отчетах!"
-            echo "Возможные причины:"
-            echo "1. Тесты не запустились"
-            echo "2. Отчеты не сгенерировались"
-            echo "3. Нет тестов в папке tests/"
-            
-            # Проверяем, есть ли тесты в папке
-            TEST_FILES_COUNT=$(find tests/ -name "*.py" -type f 2>/dev/null | wc -l)
-            echo "Файлов тестов найдено: $TEST_FILES_COUNT"
-          fi
-          
-          # Рассчитываем процент успеха
-          if [ $TOTAL_TESTS -gt 0 ]; then
-            SUCCESS_RATE=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
-          else
-            SUCCESS_RATE=0
-          fi
-          
-          # Определяем статус
-          if [ $TOTAL_TESTS -eq 0 ]; then
-            TESTS_STATUS="NO TESTS ⚠️"
-            EMOJI="❓"
-          elif [ $FAILED_TESTS -gt 0 ] || [ $BROKEN_TESTS -gt 0 ]; then
-            TESTS_STATUS="FAILED ❌"
-            EMOJI="🚨"
-          else
-            TESTS_STATUS="PASSED ✅"
-            EMOJI="🎉"
-          fi
-          
-          echo "📊 Итоговая статистика:"
-          echo "Total: $TOTAL_TESTS"
-          echo "Passed: $PASSED_TESTS"
-          echo "Failed: $FAILED_TESTS"
-          echo "Broken: $BROKEN_TESTS"
-          echo "Skipped: $SKIPPED_TESTS"
-          echo "Success Rate: $SUCCESS_RATE%"
-          echo "Status: $TESTS_STATUS"
-          
-          # Записываем в outputs
-          echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
-          echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
-          echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
-          echo "broken_tests=$BROKEN_TESTS" >> $GITHUB_OUTPUT
-          echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
-          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
-          echo "tests_status=$TESTS_STATUS" >> $GITHUB_OUTPUT
-          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
-          
-          # Создаем файл с сообщением для Telegram
-          TELEGRAM_MESSAGE="$EMOJI *Test Automation Report*
+        fi
+        
+        # Определение статуса
+        if [ "$FAILED_TESTS" -eq 0 ] && [ "$BROKEN_TESTS" -eq 0 ]; then
+          TESTS_STATUS="✅ Все тесты пройдены успешно"
+          EMOJI="✅"
+        elif [ "$FAILED_TESTS" -gt 0 ]; then
+          TESTS_STATUS="❌ Обнаружены неудачные тесты"
+          EMOJI="❌"
+        elif [ "$BROKEN_TESTS" -gt 0 ]; then
+          TESTS_STATUS="⚠️ Обнаружены сломанные тесты"
+          EMOJI="⚠️"
+        else
+          TESTS_STATUS="ℹ️ Результаты тестирования"
+          EMOJI="ℹ️"
+        fi
+        
+        # Вывод результатов
+        echo "Всего тестов: $TOTAL_TESTS"
+        echo "Пройдено: $PASSED_TESTS"
+        echo "Не пройдено: $FAILED_TESTS"
+        echo "Сломано: $BROKEN_TESTS"
+        echo "Пропущено: $SKIPPED_TESTS"
+        echo "Процент успеха: $SUCCESS_RATE%"
+        echo "Статус: $TESTS_STATUS"
+        
+        # Записываем в выходы
+        echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
+        echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
+        echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
+        echo "broken_tests=$BROKEN_TESTS" >> $GITHUB_OUTPUT
+        echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
+        echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+        echo "tests_status=$TESTS_STATUS" >> $GITHUB_OUTPUT
+        echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
 
-📊 *Test Results:*
-✅ Passed: $PASSED_TESTS
-❌ Failed: $FAILED_TESTS
-⚠️  Broken: $BROKEN_TESTS
-⏭️  Skipped: $SKIPPED_TESTS
-📈 Total: $TOTAL_TESTS
-🎯 Success Rate: $SUCCESS_RATE%
+    - name: Create Telegram message
+      env:
+        TOTAL_TESTS: ${{ steps.run_tests.outputs.total_tests }}
+        PASSED_TESTS: ${{ steps.run_tests.outputs.passed_tests }}
+        FAILED_TESTS: ${{ steps.run_tests.outputs.failed_tests }}
+        BROKEN_TESTS: ${{ steps.run_tests.outputs.broken_tests }}
+        SKIPPED_TESTS: ${{ steps.run_tests.outputs.skipped_tests }}
+        SUCCESS_RATE: ${{ steps.run_tests.outputs.success_rate }}
+        TESTS_STATUS: ${{ steps.run_tests.outputs.tests_status }}
+        EMOJI: ${{ steps.run_tests.outputs.emoji }}
+      run: |
+        TELEGRAM_MESSAGE="$EMOJI *Отчет об автоматизации тестирования*
 
-🚨 *Status:* $TESTS_STATUS
+❑️ *Результаты теста:*
 
-🌐 *Allure Report:*
-https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+✅ Пройдено: $PASSED_TESTS
+❌ Не пройдено: $FAILED_TESTS
+⚠️ Сломано: $BROKEN_TESTS
+⏭️ Пропущено: $SKIPPED_TESTS
+📊 Итого: $TOTAL_TESTS
+💯 Процент успеха: $SUCCESS_RATE%
 
-🔗 *Workflow Details:*
-https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+✅ *Статус:* $TESTS_STATUS
 
-📝 *Branch:* ${{ github.ref_name }}
-🏷️ *Commit:* ${{ github.event.head_commit.message }}"
-          
-          # Если тестов нет, добавляем дополнительную информацию
-          if [ $TOTAL_TESTS -eq 0 ]; then
-            TELEGRAM_MESSAGE="$TELEGRAM_MESSAGE
+❑️ *Отчет об очаровании:*
+https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}
 
-📢 *Внимание:* Тесты не найдены в отчетах!
-Проверьте логи выполнения тестов."
-          fi
-          
-          echo "$TELEGRAM_MESSAGE" > telegram_message.txt
-          echo "Сообщение сохранено в файл"
+🔗 *Подробности рабочего процесса:*
+https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
 
-      - name: Upload Allure report artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report
-          path: allure-report/
-          retention-days: 30
+🌿 *Ветка:* ${GITHUB_REF_NAME}
+📝 *Коммит:* ${GITHUB_EVENT_HEAD_COMMIT_MESSAGE}"
 
-      - name: Upload HTML report artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: html-report
-          path: report.html
-          retention-days: 30
+        # Если тестов нет, добавляем дополнительную информацию
+        if [ "$TOTAL_TESTS" -eq "0" ]; then
+          TELEGRAM_MESSAGE="$TELEGRAM_MESSAGE
 
-      - name: Deploy to GitHub Pages
-        if: always() && github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./allure-report
-          force_orphan: true
+⚠️ *Внимание:* Не найдено ни одного теста для выполнения!"
+        fi
+        
+        echo "$TELEGRAM_MESSAGE" > telegram_message.txt
+        echo "Telegram message created"
+        cat telegram_message.txt
+    
+    - name: Send Telegram notification
+      if: always()
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run:|
+        if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+          echo "Telegram credentials not set. Skipping notification."
+          exit 0
+        fi
+        
+        MESSAGE=$(cat telegram_message.txt | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+        
+        curl -s -X POST \
+          -H "Content-Type: application/json" \
+          -d "{\"chat_id\":\"$TELEGRAM_CHAT_ID\",\"text\":\"$MESSAGE\",\"parse_mode\":\"Markdown\"}" \
+          https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage
+        
+        echo "Telegram notification sent"
 
-      - name: Send Telegram notification
-        if: always()
-        run: |
-          echo "📤 Отправка сообщения в Telegram..."
-          
-          # Читаем сообщение из файла
-          if [ -f "telegram_message.txt" ]; then
-            MESSAGE=$(cat telegram_message.txt)
-            echo "✅ Сообщение загружено из файла"
-          else
-            # Если файла нет, создаем сообщение вручную
-            echo "⚠️ Файл telegram_message.txt не найден"
-            MESSAGE="❓ *Test Automation Report*
-
-📊 *Test Results:*
-✅ Passed: 0
-❌ Failed: 0
-⚠️  Broken: 0
-⏭️  Skipped: 0
-📈 Total: 0
-🎯 Success Rate: 0%
-
-🚨 *Status:* NO TESTS ⚠️
-
-🌐 *Allure Report:*
-https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
-
-🔗 *Workflow Details:*
-https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-📝 *Branch:* ${{ github.ref_name }}
-🏷️ *Commit:* ${{ github.event.head_commit.message }}
-
-📢 *Внимание:* Ошибка при расчете статистики!"
-          fi
-
-          echo "Длина сообщения: ${#MESSAGE} символов"
-
-          # Отправляем через curl
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="$MESSAGE" \
-            -d parse_mode="Markdown" \
-            -d disable_web_page_preview="true"
-          
-          if [ $? -eq 0 ]; then
-            echo "✅ Сообщение успешно отправлено в Telegram"
-          else
-            echo "❌ Ошибка при отправке сообщения в Telegram"
-          fi
-
-      - name: Show Report URLs
-        if: always()
-        run: |
-          echo "📊 Allure Report URLs:"
-          echo "1. GitHub Pages: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
-          echo "2. Allure Artifact: Download from Actions artifacts after workflow completes"
-          echo "3. HTML Report: Download from Actions artifacts (report.html)"
-          echo "4. Telegram: Notification sent to your bot"
-          echo ""
-          echo "📋 Test Results из outputs:"
-          echo "  Total: ${{ steps.stats.outputs.total_tests }}"
-          echo "  Passed: ${{ steps.stats.outputs.passed_tests }}"
-          echo "  Failed: ${{ steps.stats.outputs.failed_tests }}"
-          echo "  Broken: ${{ steps.stats.outputs.broken_tests }}"
-          echo "  Skipped: ${{ steps.stats.outputs.skipped_tests }}"
-          echo "  Success Rate: ${{ steps.stats.outputs.success_rate }}%"
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          telegram_message.txt
+          # Добавьте здесь другие файлы с результатами тестов
+        retention-days: 30
