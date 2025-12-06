@@ -2,9 +2,9 @@ name: Test Execution and Reporting
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -12,139 +12,139 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up environment
-      run: |
-        # Установка зависимостей или подготовка окружения
-        echo "Setting up environment..."
+      - name: Set up environment
+        run: |
+          # Установка зависимостей или подготовка окружения
+          echo "Setting up environment..."
 
-    - name: Run tests
-      id: run_tests
-      run: |
-        # Здесь выполнение тестов
-        # Пример: npm test, pytest, mvn test и т.д.
-        echo "Running tests..."
-        
-        # Пример переменных (замените на реальные результаты тестов)
-        TOTAL_TESTS=150
-        PASSED_TESTS=140
-        FAILED_TESTS=5
-        BROKEN_TESTS=3
-        SKIPPED_TESTS=2
-        
-        # Расчет процента успеха
-        if [ "$TOTAL_TESTS" -gt 0 ]; then
-          SUCCESS_RATE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
-        else
-          SUCCESS_RATE=0
-        fi
-        
-        # Определение статуса
-        if [ "$FAILED_TESTS" -eq 0 ] && [ "$BROKEN_TESTS" -eq 0 ]; then
-          TESTS_STATUS="✅ Все тесты пройдены успешно"
-          EMOJI="✅"
-        elif [ "$FAILED_TESTS" -gt 0 ]; then
-          TESTS_STATUS="❌ Обнаружены неудачные тесты"
-          EMOJI="❌"
-        elif [ "$BROKEN_TESTS" -gt 0 ]; then
-          TESTS_STATUS="⚠️ Обнаружены сломанные тесты"
-          EMOJI="⚠️"
-        else
-          TESTS_STATUS="ℹ️ Результаты тестирования"
-          EMOJI="ℹ️"
-        fi
-        
-        # Вывод результатов
-        echo "Всего тестов: $TOTAL_TESTS"
-        echo "Пройдено: $PASSED_TESTS"
-        echo "Не пройдено: $FAILED_TESTS"
-        echo "Сломано: $BROKEN_TESTS"
-        echo "Пропущено: $SKIPPED_TESTS"
-        echo "Процент успеха: $SUCCESS_RATE%"
-        echo "Статус: $TESTS_STATUS"
-        
-        # Записываем в выходы
-        echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
-        echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
-        echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
-        echo "broken_tests=$BROKEN_TESTS" >> $GITHUB_OUTPUT
-        echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
-        echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
-        echo "tests_status=$TESTS_STATUS" >> $GITHUB_OUTPUT
-        echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+      - name: Run tests
+        id: run_tests
+        run: |
+          # Здесь выполнение тестов
+          # Пример: npm test, pytest, mvn test и т.д.
+          echo "Running tests..."
+          
+          # Пример переменных (замените на реальные результаты тестов)
+          TOTAL_TESTS=150
+          PASSED_TESTS=140
+          FAILED_TESTS=5
+          BROKEN_TESTS=3
+          SKIPPED_TESTS=2
+          
+          # Расчет процента успеха
+          if [ "$TOTAL_TESTS" -gt 0 ]; then
+            SUCCESS_RATE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
+          else
+            SUCCESS_RATE=0
+          fi
+          
+          # Определение статуса
+          if [ "$FAILED_TESTS" -eq 0 ] && [ "$BROKEN_TESTS" -eq 0 ]; then
+            TESTS_STATUS="✅ Все тесты пройдены успешно"
+            EMOJI="✅"
+          elif [ "$FAILED_TESTS" -gt 0 ]; then
+            TESTS_STATUS="❌ Обнаружены неудачные тесты"
+            EMOJI="❌"
+          elif [ "$BROKEN_TESTS" -gt 0 ]; then
+            TESTS_STATUS="⚠️ Обнаружены сломанные тесты"
+            EMOJI="⚠️"
+          else
+            TESTS_STATUS="ℹ️ Результаты тестирования"
+            EMOJI="ℹ️"
+          fi
+          
+          # Вывод результатов
+          echo "Всего тестов: $TOTAL_TESTS"
+          echo "Пройдено: $PASSED_TESTS"
+          echo "Не пройдено: $FAILED_TESTS"
+          echo "Сломано: $BROKEN_TESTS"
+          echo "Пропущено: $SKIPPED_TESTS"
+          echo "Процент успеха: $SUCCESS_RATE%"
+          echo "Статус: $TESTS_STATUS"
+          
+          # Записываем в выходы
+          echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
+          echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
+          echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
+          echo "broken_tests=$BROKEN_TESTS" >> $GITHUB_OUTPUT
+          echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
+          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+          echo "tests_status=$TESTS_STATUS" >> $GITHUB_OUTPUT
+          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
 
-    - name: Create Telegram message
-      env:
-        TOTAL_TESTS: ${{ steps.run_tests.outputs.total_tests }}
-        PASSED_TESTS: ${{ steps.run_tests.outputs.passed_tests }}
-        FAILED_TESTS: ${{ steps.run_tests.outputs.failed_tests }}
-        BROKEN_TESTS: ${{ steps.run_tests.outputs.broken_tests }}
-        SKIPPED_TESTS: ${{ steps.run_tests.outputs.skipped_tests }}
-        SUCCESS_RATE: ${{ steps.run_tests.outputs.success_rate }}
-        TESTS_STATUS: ${{ steps.run_tests.outputs.tests_status }}
-        EMOJI: ${{ steps.run_tests.outputs.emoji }}
-      run: |
-        TELEGRAM_MESSAGE="$EMOJI *Отчет об автоматизации тестирования*
+      - name: Create Telegram message
+        env:
+          TOTAL_TESTS: ${{ steps.run_tests.outputs.total_tests }}
+          PASSED_TESTS: ${{ steps.run_tests.outputs.passed_tests }}
+          FAILED_TESTS: ${{ steps.run_tests.outputs.failed_tests }}
+          BROKEN_TESTS: ${{ steps.run_tests.outputs.broken_tests }}
+          SKIPPED_TESTS: ${{ steps.run_tests.outputs.skipped_tests }}
+          SUCCESS_RATE: ${{ steps.run_tests.outputs.success_rate }}
+          TESTS_STATUS: ${{ steps.run_tests.outputs.tests_status }}
+          EMOJI: ${{ steps.run_tests.outputs.emoji }}
+        run: |
+          TELEGRAM_MESSAGE="$EMOJI *Отчет об автоматизации тестирования*
 
-❑️ *Результаты теста:*
+*Результаты теста:*
 
-✅ Пройдено: $PASSED_TESTS
-❌ Не пройдено: $FAILED_TESTS
-⚠️ Сломано: $BROKEN_TESTS
-⏭️ Пропущено: $SKIPPED_TESTS
-📊 Итого: $TOTAL_TESTS
-💯 Процент успеха: $SUCCESS_RATE%
+Пройдено: $PASSED_TESTS
+Не пройдено: $FAILED_TESTS
+Сломано: $BROKEN_TESTS
+Пропущено: $SKIPPED_TESTS
+Итого: $TOTAL_TESTS
+Процент успеха: $SUCCESS_RATE%
 
-✅ *Статус:* $TESTS_STATUS
+*Статус:* $TESTS_STATUS
 
-❑️ *Отчет об очаровании:*
+*Отчет об очаровании:*
 https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}
 
-🔗 *Подробности рабочего процесса:*
+*Подробности рабочего процесса:*
 https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
 
-🌿 *Ветка:* ${GITHUB_REF_NAME}
-📝 *Коммит:* ${GITHUB_EVENT_HEAD_COMMIT_MESSAGE}"
+*Ветка:* ${GITHUB_REF_NAME}
+*Коммит:* ${GITHUB_EVENT_HEAD_COMMIT_MESSAGE}"
 
-        # Если тестов нет, добавляем дополнительную информацию
-        if [ "$TOTAL_TESTS" -eq "0" ]; then
-          TELEGRAM_MESSAGE="$TELEGRAM_MESSAGE
+          # Если тестов нет, добавляем дополнительную информацию
+          if [ "$TOTAL_TESTS" -eq "0" ]; then
+            TELEGRAM_MESSAGE="$TELEGRAM_MESSAGE
 
 ⚠️ *Внимание:* Не найдено ни одного теста для выполнения!"
-        fi
-        
-        echo "$TELEGRAM_MESSAGE" > telegram_message.txt
-        echo "Telegram message created"
-        cat telegram_message.txt
-    
-    - name: Send Telegram notification
-      if: always()
-      env:
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: |
-        if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-          echo "Telegram credentials not set. Skipping notification."
-          exit 0
-        fi
-        
-        MESSAGE=$(cat telegram_message.txt | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
-        
-        curl -s -X POST \
-          -H "Content-Type: application/json" \
-          -d "{\"chat_id\":\"$TELEGRAM_CHAT_ID\",\"text\":\"$MESSAGE\",\"parse_mode\":\"Markdown\"}" \
-          https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage
-        
-        echo "Telegram notification sent"
+          fi
+          
+          echo "$TELEGRAM_MESSAGE" > telegram_message.txt
+          echo "Telegram message created"
+          cat telegram_message.txt
 
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: test-results
-        path: |
-          telegram_message.txt
-          # Добавьте здесь другие файлы с результатами тестов
-        retention-days: 30
+      - name: Send Telegram notification
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram credentials not set. Skipping notification."
+            exit 0
+          fi
+          
+          MESSAGE=$(cat telegram_message.txt | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+          
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"$TELEGRAM_CHAT_ID\",\"text\":\"$MESSAGE\",\"parse_mode\":\"Markdown\"}" \
+            https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage
+          
+          echo "Telegram notification sent"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            telegram_message.txt
+            # Добавьте здесь другие файлы с результатами тестов
+          retention-days: 30
