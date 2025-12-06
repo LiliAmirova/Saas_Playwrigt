@@ -134,4 +134,5 @@ jobs:
           echo "2. Artifact: Download from Actions artifacts after workflow completes"
           echo "3. Telegram: Notification sent to your bot"
           echo ""
-          echo "📋 Test Status: ${{ steps.stats.outputs.tests_status }}"
+          echo "📋 Test Status: ${{ steps.stats.outputs.tests_status }}"  # fkfkfkf
+          
