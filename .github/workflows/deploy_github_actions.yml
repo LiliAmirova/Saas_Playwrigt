@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install playwright pytest allure-pytest pytest-html
+          pip install playwright pytest allure-pytest
           playwright install --with-deps
 
       - name: Install Allure CLI
@@ -38,64 +38,101 @@ jobs:
 
       - name: 🧪 Run tests with Allure
         id: run-tests
-        continue-on-error: true
+        continue-on-error: true  # Продолжать даже если тесты упали
         env:
           BASE_URL: ${{ secrets.BASE_URL }}
           TEST_USER_LOGIN: ${{ secrets.TEST_USER_LOGIN }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: |
-          # Сначала проверим структуру тестов
-          echo "📁 Структура папки tests:"
-          find tests/ -type f -name "*.py" | head -20
-          
-          echo "🧪 Запуск тестов..."
-          # Запускаем тесты с созданием allure-результатов
-          pytest tests/ \
-            -v \
-            --alluredir=allure-results \
-            --html=report.html \
-            --self-contained-html \
-            --junitxml=report.xml
-          
-          # Проверяем, создались ли результаты
-          echo "📊 Проверка результатов:"
-          if [ -d "allure-results" ]; then
-            echo "Allure results созданы"
-            ls -la allure-results/ | head -10
-          else
-            echo "ERROR: Allure results НЕ созданы!"
-          fi
+          pytest tests/ -v --alluredir=allure-results
 
       - name: Generate Allure report
-        if: always()
+        if: always()  # Генерировать отчет даже если тесты упали
         run: |
-          # Проверяем наличие результатов перед генерацией
-          if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
-            echo "Генерация Allure отчета..."
-            allure generate allure-results -o allure-report --clean
-            echo "Allure отчет сгенерирован"
-          else
-            echo "WARNING: Нет данных для генерации Allure отчета!"
-            mkdir -p allure-report
-            echo "<html><body><h1>No test results found</h1></body></html>" > allure-report/index.html
-          fi
+          allure generate allure-results -o allure-report --clean
 
       - name: Calculate test statistics
         id: stats
+        if: always()  # Рассчитывать статистику даже если тесты упали
+        run: |
+          TOTAL_TESTS=$(find allure-results -name "*.json" | wc -l)
+          PASSED_TESTS=$(grep -r '"status":"passed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          FAILED_TESTS=$(grep -r '"status":"failed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          
+          if [ $TOTAL_TESTS -gt 0 ]; then
+            SUCCESS_RATE=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
+          else
+            SUCCESS_RATE=0
+          fi
+          
+          echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
+          echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
+          echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
+          echo "broken_tests=$BROKEN_TESTS" >> $GITHUB_OUTPUT
+          echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
+          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+          
+          # Добавляем статус выполнения тестов
+          if [ $FAILED_TESTS -gt 0 ] || [ $BROKEN_TESTS -gt 0 ]; then
+            echo "tests_status=FAILED ❌" >> $GITHUB_OUTPUT
+          else
+            echo "tests_status=PASSED ✅" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Allure report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report/
+          retention-days: 30
+
+      - name: Deploy to GitHub Pages
+        if: always() && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+          force_orphan: true
+
+      - name: Send Telegram notification
+        if: always()  # Ключевое изменение - отправлять ВСЕГДА
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ${{ steps.stats.outputs.tests_status == 'PASSED ✅' && '🎉' || '🚨' }} *Test Automation Report*
+            
+            📊 *Test Results:*
+            ✅ Passed: ${{ steps.stats.outputs.passed_tests }}
+            ❌ Failed: ${{ steps.stats.outputs.failed_tests }}
+            ⚠️  Broken: ${{ steps.stats.outputs.broken_tests }}
+            ⏭️  Skipped: ${{ steps.stats.outputs.skipped_tests }}
+            📈 Total: ${{ steps.stats.outputs.total_tests }}
+            🎯 Success Rate: ${{ steps.stats.outputs.success_rate }}%
+            
+            🚨 *Status:* ${{ steps.stats.outputs.tests_status }}
+            
+            🌐 *Allure Report:*
+            https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+            
+            🔗 *Workflow Details:*
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            📝 *Branch:* ${{ github.ref_name }}
+            🏷️ *Commit:* ${{ github.event.head_commit.message }}
+          parse_mode: markdown
+
+      - name: Show Report URLs
         if: always()
         run: |
-          # Проверяем наличие результатов
-          if [ -d "allure-results" ] && [ "$(ls -A allure-results 2>/dev/null)" ]; then
-            echo "📊 Расчет статистики из allure-results..."
-            TOTAL_TESTS=$(find allure-results -name "*.json" | wc -l)
-            PASSED_TESTS=$(grep -r '"status":"passed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
-            FAILED_TESTS=$(grep -r '"status":"failed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
-            BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
-            SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
-            
-            echo "Found: Total=$TOTAL_TESTS, Passed=$PASSED_TESTS, Failed=$FAILED_TESTS"
-          else
-            echo "⚠️  Allure results не найдены, проверяем junit xml..."
-            if [ -f "report.xml" ]; then
-              TOTAL_TESTS=$(grep -c '<testcase' report.xml 2>/dev/null || echo "0")
-              PASSED_TESTS=$(grep -c '<testcase' report.xml 2>/dev/null || echo
+          echo "📊 Allure Report URLs:"
+          echo "1. GitHub Pages: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "2. Artifact: Download from Actions artifacts after workflow completes"
+          echo "3. Telegram: Notification sent to your bot"
+          echo ""
+          echo "📋 Test Status: ${{ steps.stats.outputs.tests_status }}"  # fkfkfkf
+          
