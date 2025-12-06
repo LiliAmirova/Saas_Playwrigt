@@ -124,7 +124,7 @@ https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
       env:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run:|
+      run: |
         if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
           echo "Telegram credentials not set. Skipping notification."
           exit 0
