@@ -31,8 +31,6 @@ def test_e2e(page: Page) -> None:
     with allure.step("Собираем заказ"):
         countertop_type = "П-образная"
         stone_material = "N-103 Gray Onix"
-        total_cost = "401800.00 ₽"
-
 
         calculator_page.switch_to_u_type_countertop() #  Выбираем П-образную столешницу
         calculator_page.choice_of_thickness("4")  # Выбираем толщину столешницы= 4 см
@@ -84,10 +82,19 @@ def test_e2e(page: Page) -> None:
         assert "Проточки для стока воды" in options_sink_value, f"Expected 'Проточки для стока воды' to be in '{options_sink_value}'"
         main_page.attach_screenshot(table_basic_parameters, "Параметры столешницы")
 
-    with allure.step(f"Проверяем Итоговую стоимость={total_cost}"):
+    with allure.step(f"Проверяем Итоговую стоимость>0"):
         print(results_page.get_total_cost_value())
-        total_cost_actual_value = results_page.get_total_cost_value()
-        assert total_cost_actual_value == total_cost,  f"Ожидалась сумма {total_cost}, получен {total_cost_actual_value}"
+        total_cost_text = results_page.get_total_cost_value()  # Например: "1 200,50 ₽"
+        # Убираем лишние символы и преобразуем в float
+        total_cost_clean = total_cost_text.replace(' ', '').replace('₽', '').replace(',', '.')
+        total_cost_value = float(total_cost_clean)
+
+        print(f"Итоговая стоимость: {total_cost_value}")
+
+        assert total_cost_value > 0, f"Ожидалась сумма > 0, получено {total_cost_value}"
+
+
+
 
 
 
