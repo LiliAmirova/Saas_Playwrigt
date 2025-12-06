@@ -3,6 +3,9 @@ name: PW Tests
 on:
   push:
   workflow_dispatch:
+  schedule:
+    # Каждый день в 17:30 по Москве (14:30 UTC)
+    - cron: '32 14 * * *'
 
 jobs:
   run-tests:
@@ -184,14 +187,14 @@ jobs:
             ${{ steps.stats.outputs.emoji }} Test Automation Report
             
               📊  Test Results:
-              ✅  Passed: ${{ steps.stats.outputs.passed_tests }}
-              ❌  Failed: ${{ steps.stats.outputs.failed_tests }}
-              ⚠️  Broken: ${{ steps.stats.outputs.broken_tests }}
-              ⏭️  Skipped: ${{ steps.stats.outputs.skipped_tests }}
-              📈  Total: ${{ steps.stats.outputs.total_tests }}
-              🎯  Success Rate: ${{ steps.stats.outputs.success_rate }}%
+                  ✅   Passed: ${{ steps.stats.outputs.passed_tests }}
+                  ❌   Failed: ${{ steps.stats.outputs.failed_tests }}
+                  ⚠️   Broken: ${{ steps.stats.outputs.broken_tests }}
+                  ⏭️   Skipped: ${{ steps.stats.outputs.skipped_tests }}
+                  📈   Total: ${{ steps.stats.outputs.total_tests }}
+                  🎯   Success Rate: ${{ steps.stats.outputs.success_rate }}%
             
-            🚨 Status: ${{ steps.stats.outputs.tests_status }}
+            🚨 Run Status:  ${{ steps.stats.outputs.tests_status }}
             
             🌐 Allure Report:
             https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
