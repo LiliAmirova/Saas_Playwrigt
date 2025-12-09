@@ -19,14 +19,18 @@ jobs:
       HOME: /home/runner
 
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
+      # ПЕРВЫМ шагом добавляем GitHub в known_hosts
       - name: Setup SSH for GitHub
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          echo "✅ GitHub SSH fingerprint added"
+
+      # ПОТОМ делаем checkout
+      - name: Check out repository code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
