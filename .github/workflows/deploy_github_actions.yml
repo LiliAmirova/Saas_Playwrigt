@@ -65,7 +65,7 @@ jobs:
           BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
           SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
           
-          # ДОБАВЛЕННЫЙ ОТЛАДОЧНЫЙ ВЫВОД
+          # ДОБАВЛЕННЫЙ ОТЛАДОЧНЫЙ ВЫВОД-
           echo "DEBUG: Total test files found: $TOTAL_TESTS"
           echo "DEBUG: Passed tests: $PASSED_TESTS"
           echo "DEBUG: Failed tests: $FAILED_TESTS"
