@@ -55,16 +55,32 @@ jobs:
         run: |
           allure generate allure-results -o allure-report --clean
 
+      - name: Check allure-results directory
+        if: always()
+        run: |
+          echo "Checking allure-results directory..."
+          ls -la allure-results/ || echo "Directory allure-results not found"
+          find allure-results -type f -name "*.json" | wc -l
+          
+
       - name: Calculate test statistics
         id: stats
         if: always()
         run: |
-          TOTAL_TESTS=$(find allure-results -name "*.json" | wc -l)
-          PASSED_TESTS=$(grep -r '"status":"passed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
-          FAILED_TESTS=$(grep -r '"status":"failed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
-          BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
-          SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          TOTAL_TESTS=$(find allure-results -type f -name "*.json" | wc -l)
+          PASSED_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"passed"' {} \; | wc -l || echo "0")
+          FAILED_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"failed"' {} \; | wc -l || echo "0")
+          BROKEN_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"broken"' {} \; | wc -l || echo "0")
+          SKIPPED_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"skipped"' {} \; | wc -l || echo "0")
           
+          # Отладочный вывод
+          echo "=== DEBUG STATS ==="
+          echo "TOTAL_TESTS: $TOTAL_TESTS"
+          echo "PASSED_TESTS: $PASSED_TESTS"
+          echo "Allure files found:"
+          find allure-results -name "*.json" | head -5
+          echo "=== END DEBUG ==="
+                    
           if [ $TOTAL_TESTS -gt 0 ]; then
             SUCCESS_RATE=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
           else
@@ -122,20 +138,20 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            ${{ steps.stats.outputs.status_emoji }} *Daily Test Report*
+            ${{ steps.stats.outputs.status_emoji }}  Daily Test Report 
             
             📋 Run Type: ${{ steps.stats.outputs.run_type }}
             📊 Status: ${{ steps.stats.outputs.run_status }}
             
             📈 Test Results:
-            ✅ Passed: ${{ steps.stats.outputs.passed_tests }}
-            ❌ Failed: ${{ steps.stats.outputs.failed_tests }}
-            ⚠️  Broken: ${{ steps.stats.outputs.broken_tests }}
-            ⏭️  Skipped: ${{ steps.stats.outputs.skipped_tests }}
-            📊 Total: ${{ steps.stats.outputs.total_tests }}
-            🎯 Success Rate: ${{ steps.stats.outputs.success_rate }}%
+               ✅  Passed: ${{ steps.stats.outputs.passed_tests }}
+               ❌  Failed: ${{ steps.stats.outputs.failed_tests }}
+               ⚠️  Broken: ${{ steps.stats.outputs.broken_tests }}
+               ⏭️  Skipped: ${{ steps.stats.outputs.skipped_tests }}
+               📊  Total: ${{ steps.stats.outputs.total_tests }}
+               🎯  Success Rate: ${{ steps.stats.outputs.success_rate }}%
             
-            🌐 Allure Report:
+            🌐  Allure Report:
             https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
             
             🔗 Workflow Details:
