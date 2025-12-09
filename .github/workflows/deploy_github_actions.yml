@@ -5,7 +5,6 @@ on:
     branches: [ main, master, develop ]
   workflow_dispatch:  # Ручной запуск
   schedule:
-    # Запуск каждый день в 17:30 по Москве (14:30 UTC)
     - cron: '05 17 * * *'
 
 jobs:
@@ -19,31 +18,15 @@ jobs:
     env:
       HOME: /home/runner
 
-
     steps:
-
-      # РЕШЕНИЕ: Добавляем GitHub в known_hosts перед checkout
-      - name: Add GitHub to SSH known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
-          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-          echo "✅ GitHub added to known_hosts"
-
       - name: Check out repository code
         uses: actions/checkout@v4
 
-
-      # РЕШЕНИЕ: Добавляем GitHub в known_hosts для SSH
       - name: Setup SSH for GitHub
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
-          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-
-      
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -100,7 +83,7 @@ jobs:
           
           # Определяем тип запуска с учетом времени
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            RUN_TYPE="🕔 Daily Run (17:30 MSK)"
+            RUN_TYPE="🕔 Daily Run (20:30 MSK)"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             RUN_TYPE="👨‍💻 Manual Run"
           else
