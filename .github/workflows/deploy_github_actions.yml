@@ -1,38 +1,34 @@
-name: CI-CD Pipeline
+name: PW Tests
+run-name: ${{ github.actor }} is running autotests 🚀
 
-on:
-  push:
-    branches: [ main ]
+on: [push, workflow_dispatch]
 
 jobs:
-  build-test:
+  run-tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      # 1. Добавляем GitHub в known_hosts
+      - name: Setup SSH for GitHub
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build project
-        run: npm run build
-
-  deploy:
-    needs: build-test
-    runs-on: ubuntu-latest
-    if: ${{ success() }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
+      # 2. Checkout с отключенной проверкой
+      - name: Check out repository code
+        uses: actions/checkout@v4
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            rsync -avz --delete ./build/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/html
+          fetch-depth: 0
+          ssh-strict: false
+
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npx playwright test --list
+      - run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
