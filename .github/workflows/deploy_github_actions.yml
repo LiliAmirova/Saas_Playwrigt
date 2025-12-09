@@ -3,7 +3,7 @@ name: PW Tests
 on:
   push:
     branches: [ main, master, develop ]
-  workflow_dispatch:  # Ручной запуск
+  workflow_dispatch:
   schedule:
     - cron: '05 17 * * *'
 
@@ -15,22 +15,33 @@ jobs:
       pages: write
       id-token: write
 
-    env:
-      HOME: /home/runner
-
     steps:
-      # ПЕРВЫМ шагом добавляем GitHub в known_hosts
-      - name: Setup SSH for GitHub
+      # РЕШЕНИЕ: Полностью отключаем SSH
+      - name: Disable SSH and force HTTPS
         run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
-          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-          echo "✅ GitHub SSH fingerprint added"
+          echo "Forcing Git to use HTTPS instead of SSH..."
+          
+          # 1. Устанавливаем правильную HOME
+          export HOME=/home/runner
+          
+          # 2. Принудительно меняем все SSH URLs на HTTPS
+          git config --global url."https://github.com".insteadOf "ssh://git@github.com"
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          
+          # 3. Удаляем любые SSH настройки
+          git config --global --unset core.sshCommand 2>/dev/null || true
+          
+          # 4. Проверяем
+          echo "Git config:"
+          git config --global --list | grep -E "(url|ssh)" || echo "No SSH config found"
 
-      # ПОТОМ делаем checkout
       - name: Check out repository code
         uses: actions/checkout@v4
+        with:
+          # Явно указываем использовать токен
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
 
       - name: Set up Python
         uses: actions/setup-python@v5
