@@ -1,35 +1,183 @@
 name: PW Tests
-run-name: ${{ github.actor }} is running autotests 🚀
 
-
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+  schedule:
+    - cron: '05 17 * * *'
 
 jobs:
   run-tests:
     runs-on: ubuntu-latest
-    steps:
-      # 1. Добавляем GitHub в known_hosts
-      - name: Setup SSH for GitHub
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-          chmod 600 ~/.ssh/known_hosts
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
 
-      # 2. Checkout с отключенной проверкой
+
+    steps:
+      # РЕШЕНИЕ: Полностью отключаем SSH
+      - name: Disable SSH and force HTTPS
+        run: |
+          echo "Forcing Git to use HTTPS instead of SSH..."
+          
+          # 1. Устанавливаем правильную HOME
+          export HOME=/home/runner
+          
+          # 2. Принудительно меняем все SSH URLs на HTTPS
+          git config --global url."https://github.com".insteadOf "ssh://git@github.com"
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          
+          # 3. Удаляем любые SSH настройки
+          git config --global --unset core.sshCommand 2>/dev/null || true
+          
+          # 4. Проверяем
+          echo "Git config:"
+          git config --global --list | grep -E "(url|ssh)" || echo "No SSH config found"
+
       - name: Check out repository code
         uses: actions/checkout@v4
         with:
+          # Явно указываем использовать токен
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-          ssh-strict: false
 
-      - run: npm ci
-      - run: npx playwright install --with-deps
-      - run: npx playwright test --list
-      - run: npx playwright test
 
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          name: playwright-report
-          path: playwright-report/
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install playwright pytest allure-pytest
+          playwright install --with-deps
+
+      - name: Install Allure CLI
+        run: |
+          sudo wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+          sudo tar -zxvf allure-2.27.0.tgz -C /opt/
+          sudo ln -s /opt/allure-2.27.0/bin/allure /usr/bin/allure
+
+      - name: 🧪 Run tests with Allure
+        id: run-tests
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_USER_LOGIN: ${{ secrets.TEST_USER_LOGIN }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: |
+          pytest tests/ -v --alluredir=allure-results
+
+      - name: Generate Allure report
+        if: always()
+        run: |
+          allure generate allure-results -o allure-report --clean
+
+      - name: Calculate test statistics
+        id: stats
+        if: always()
+        run: |
+          TOTAL_TESTS=$(find allure-results -name "*.json" | wc -l)
+          PASSED_TESTS=$(grep -r '"status":"passed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          FAILED_TESTS=$(grep -r '"status":"failed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+          
+          # Отладочный вывод
+          echo "DEBUG: Total test files: $TOTAL_TESTS"
+          echo "DEBUG: Passed: $PASSED_TESTS, Failed: $FAILED_TESTS, Broken: $BROKEN_TESTS, Skipped: $SKIPPED_TESTS"
+          
+          if [ $TOTAL_TESTS -gt 0 ]; then
+            SUCCESS_RATE=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
+          else
+            SUCCESS_RATE=0
+          fi
+          
+          # Определяем тип запуска с учетом времени
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            RUN_TYPE="🕔 Daily Run (20:30 MSK)"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RUN_TYPE="👨‍💻 Manual Run"
+          else
+            RUN_TYPE="🚀 Push Run"
+          fi
+          
+          # Определяем emoji для статуса (исправление для Telegram)
+          if [ $FAILED_TESTS -gt 0 ] || [ $BROKEN_TESTS -gt 0 ]; then
+            RUN_STATUS="FAILED ❌"
+            STATUS_EMOJI="🚨"
+          else
+            RUN_STATUS="PASSED ✅"
+            STATUS_EMOJI="🎉"
+          fi
+          
+          echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
+          echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
+          echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
+          echo "broken_tests=$BROKEN_TESTS" >> $GITHUB_OUTPUT
+          echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
+          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+          echo "run_type=$RUN_TYPE" >> $GITHUB_OUTPUT
+          echo "run_status=$RUN_STATUS" >> $GITHUB_OUTPUT
+          echo "status_emoji=$STATUS_EMOJI" >> $GITHUB_OUTPUT
+
+      - name: Upload Allure report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report/
           retention-days: 30
+
+      - name: Deploy to GitHub Pages
+        if: always() && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+          force_orphan: true
+
+      - name: Send Telegram notification
+        if: always()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ${{ steps.stats.outputs.status_emoji }} *Daily Test Report*
+            
+            📋 Run Type: ${{ steps.stats.outputs.run_type }}
+            📊 Status: ${{ steps.stats.outputs.run_status }}
+            
+            📈 Test Results:
+            ✅ Passed: ${{ steps.stats.outputs.passed_tests }}
+            ❌ Failed: ${{ steps.stats.outputs.failed_tests }}
+            ⚠️ Broken: ${{ steps.stats.outputs.broken_tests }}
+            ⏭️ Skipped: ${{ steps.stats.outputs.skipped_tests }}
+            📊 Total: ${{ steps.stats.outputs.total_tests }}
+            🎯 Success Rate: ${{ steps.stats.outputs.success_rate }}%
+            
+            🌐 Allure Report:
+            https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+            
+            🔗 Workflow Details:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            📝 Branch: ${{ github.ref_name }}
+            🏷️ Commit: ${{ github.event.head_commit.message }}
+          parse_mode: markdown
+
+      - name: Show Report URLs
+        if: always()
+        run: |
+          echo "📊 Allure Report URLs:"
+          echo "1. GitHub Pages: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "2. Artifact: Download from Actions artifacts after workflow completes"
+          echo "3. Telegram: Notification sent to your bot"
+          echo ""
+          echo "📋 Run Status: ${{ steps.stats.outputs.run_status }}"
+          echo "🏃 Run Type: ${{ steps.stats.outputs.run_type }}"
