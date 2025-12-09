@@ -67,53 +67,49 @@ jobs:
         id: stats
         if: always()
         run: |
-          TOTAL_TESTS=$(find allure-results -type f -name "*.json" | wc -l)
-          PASSED_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"passed"' {} \; | wc -l || echo "0")
-          FAILED_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"failed"' {} \; | wc -l || echo "0")
-          BROKEN_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"broken"' {} \; | wc -l || echo "0")
-          SKIPPED_TESTS=$(find allure-results -type f -name "*.json" -exec grep -l '"status":"skipped"' {} \; | wc -l || echo "0")
-          
-          # Отладочный вывод
-          echo "=== DEBUG STATS ==="
-          echo "TOTAL_TESTS: $TOTAL_TESTS"
-          echo "PASSED_TESTS: $PASSED_TESTS"
-          echo "Allure files found:"
-          find allure-results -name "*.json" | head -5
-          echo "=== END DEBUG ==="
-                    
-          if [ $TOTAL_TESTS -gt 0 ]; then
-            SUCCESS_RATE=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
-          else
-            SUCCESS_RATE=0
-          fi
-          
-          # Определяем тип запуска с учетом времени
-          if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            RUN_TYPE="🕔 Daily Run (17:30 MSK)"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            RUN_TYPE="👨‍💻 Manual Run"
-          else
-            RUN_TYPE="🚀 Push Run"
-          fi
-          
-          # Определяем emoji для статуса
-          if [ $FAILED_TESTS -gt 0 ] || [ $BROKEN_TESTS -gt 0 ]; then
-            RUN_STATUS="FAILED ❌"
-            STATUS_EMOJI="🚨"
-          else
-            RUN_STATUS="PASSED ✅"
-            STATUS_EMOJI="🎉"
-          fi
-          
-          echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
-          echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
-          echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
-          echo "broken_tests=$BROKEN_TESTS" >> $GITHUB_OUTPUT
-          echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
-          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
-          echo "run_type=$RUN_TYPE" >> $GITHUB_OUTPUT
-          echo "run_status=$RUN_STATUS" >> $GITHUB_OUTPUT
-          echo "status_emoji=$STATUS_EMOJI" >> $GITHUB_OUTPUT
+            TOTAL_TESTS=$(find allure-results -name "*.json" 2>/dev/null | wc -l || echo "0")
+            PASSED_TESTS=$(grep -r '"status":"passed"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
+            
+            # Сохраняем в файл
+            echo "TOTAL_TESTS=$TOTAL_TESTS" >> stats.env
+            echo "PASSED_TESTS=$PASSED_TESTS" >> stats.env
+            echo "FAILED_TESTS=$FAILED_TESTS" >> stats.env
+            
+            # Также сохраняем в GITHUB_OUTPUT
+            echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
+            echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
+            
+            # Выводим содержимое файла
+            cat stats.env
+
+            - name: Load stats to env
+              if: always()
+              run: |
+                # Загружаем переменные из файла
+                if [ -f stats.env ]; then
+                  set -a
+                  source stats.env
+                  set +a
+                  echo "Loaded stats from file"
+                else
+                  echo "stats.env not found, using defaults"
+                  export TOTAL_TESTS=0
+                  export PASSED_TESTS=0
+                fi
+
+            - name: Send Telegram notification
+              if: always()
+              env:
+                TOTAL_TESTS_ENV: ${{ env.TOTAL_TESTS || '0' }}
+                PASSED_TESTS_ENV: ${{ env.PASSED_TESTS || '0' }}
+              uses: appleboy/telegram-action@master
+              with:
+                to: ${{ secrets.TELEGRAM_CHAT_ID }}
+                token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+                message: |
+                  Using env variables:
+                  ✅ Passed: ${{ env.PASSED_TESTS_ENV }}
+                  📊 Total: ${{ env.TOTAL_TESTS_ENV }}
 
       - name: Upload Allure report artifact
         if: always()
