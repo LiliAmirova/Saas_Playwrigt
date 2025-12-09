@@ -3,8 +3,9 @@ name: PW Tests
 on:
   push:
     branches: [ main, master, develop ]
-  workflow_dispatch:
+  workflow_dispatch:  # Ручной запуск
   schedule:
+    # Запуск каждый день в 17:30 по Москве (14:30 UTC)
     - cron: '05 17 * * *'
 
 jobs:
@@ -15,34 +16,11 @@ jobs:
       pages: write
       id-token: write
 
-
     steps:
-      # РЕШЕНИЕ: Полностью отключаем SSH
-      - name: Disable SSH and force HTTPS
-        run: |
-          echo "Forcing Git to use HTTPS instead of SSH..."
-          
-          # 1. Устанавливаем правильную HOME
-          export HOME=/home/runner
-          
-          # 2. Принудительно меняем все SSH URLs на HTTPS
-          git config --global url."https://github.com".insteadOf "ssh://git@github.com"
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          
-          # 3. Удаляем любые SSH настройки
-          git config --global --unset core.sshCommand 2>/dev/null || true
-          
-          # 4. Проверяем
-          echo "Git config:"
-          git config --global --list | grep -E "(url|ssh)" || echo "No SSH config found"
-
       - name: Check out repository code
         uses: actions/checkout@v4
         with:
-          # Явно указываем использовать токен
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -87,10 +65,6 @@ jobs:
           BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
           SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
           
-          # Отладочный вывод
-          echo "DEBUG: Total test files: $TOTAL_TESTS"
-          echo "DEBUG: Passed: $PASSED_TESTS, Failed: $FAILED_TESTS, Broken: $BROKEN_TESTS, Skipped: $SKIPPED_TESTS"
-          
           if [ $TOTAL_TESTS -gt 0 ]; then
             SUCCESS_RATE=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
           else
@@ -99,14 +73,14 @@ jobs:
           
           # Определяем тип запуска с учетом времени
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            RUN_TYPE="🕔 Daily Run (20:30 MSK)"
+            RUN_TYPE="🕔 Daily Run (17:30 MSK)"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             RUN_TYPE="👨‍💻 Manual Run"
           else
             RUN_TYPE="🚀 Push Run"
           fi
           
-          # Определяем emoji для статуса (исправление для Telegram)
+          # Определяем emoji для статуса
           if [ $FAILED_TESTS -gt 0 ] || [ $BROKEN_TESTS -gt 0 ]; then
             RUN_STATUS="FAILED ❌"
             STATUS_EMOJI="🚨"
@@ -156,8 +130,8 @@ jobs:
             📈 Test Results:
             ✅ Passed: ${{ steps.stats.outputs.passed_tests }}
             ❌ Failed: ${{ steps.stats.outputs.failed_tests }}
-            ⚠️ Broken: ${{ steps.stats.outputs.broken_tests }}
-            ⏭️ Skipped: ${{ steps.stats.outputs.skipped_tests }}
+            ⚠️  Broken: ${{ steps.stats.outputs.broken_tests }}
+            ⏭️  Skipped: ${{ steps.stats.outputs.skipped_tests }}
             📊 Total: ${{ steps.stats.outputs.total_tests }}
             🎯 Success Rate: ${{ steps.stats.outputs.success_rate }}%
             
