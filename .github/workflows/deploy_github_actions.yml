@@ -65,6 +65,14 @@ jobs:
           BROKEN_TESTS=$(grep -r '"status":"broken"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
           SKIPPED_TESTS=$(grep -r '"status":"skipped"' allure-results/*.json 2>/dev/null | wc -l || echo "0")
           
+          # ДОБАВЛЕННЫЙ ОТЛАДОЧНЫЙ ВЫВОД
+          echo "DEBUG: Total test files found: $TOTAL_TESTS"
+          echo "DEBUG: Passed tests: $PASSED_TESTS"
+          echo "DEBUG: Failed tests: $FAILED_TESTS"
+          echo "DEBUG: Broken tests: $BROKEN_TESTS"
+          echo "DEBUG: Skipped tests: $SKIPPED_TESTS"
+          echo "DEBUG: Total tests sum: $((PASSED_TESTS + FAILED_TESTS + BROKEN_TESTS + SKIPPED_TESTS))"
+          
           if [ $TOTAL_TESTS -gt 0 ]; then
             SUCCESS_RATE=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
           else
@@ -80,6 +88,15 @@ jobs:
             RUN_TYPE="🚀 Push Run"
           fi
           
+          # Определяем emoji для статуса
+          if [ $FAILED_TESTS -gt 0 ] || [ $BROKEN_TESTS -gt 0 ]; then
+            RUN_STATUS="FAILED ❌"
+            STATUS_EMOJI="🚨"
+          else
+            RUN_STATUS="PASSED ✅"
+            STATUS_EMOJI="🎉"
+          fi
+          
           echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
           echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
           echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
@@ -87,12 +104,8 @@ jobs:
           echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
           echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
           echo "run_type=$RUN_TYPE" >> $GITHUB_OUTPUT
-          
-          if [ $FAILED_TESTS -gt 0 ] || [ $BROKEN_TESTS -gt 0 ]; then
-            echo "run_status=FAILED ❌" >> $GITHUB_OUTPUT
-          else
-            echo "run_status=PASSED ✅" >> $GITHUB_OUTPUT
-          fi
+          echo "run_status=$RUN_STATUS" >> $GITHUB_OUTPUT
+          echo "status_emoji=$STATUS_EMOJI" >> $GITHUB_OUTPUT
 
       - name: Upload Allure report artifact
         if: always()
@@ -117,12 +130,12 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            ${{ steps.stats.outputs.run_status == 'PASSED ✅' && '🎉' || '🚨' }} *Daily Test Report*
+            ${{ steps.stats.outputs.status_emoji }} *Daily Test Report*
             
-            📋 *Run Type:* ${{ steps.stats.outputs.run_type }}
-            📊 *Status:* ${{ steps.stats.outputs.run_status }}
+            📋 Run Type: ${{ steps.stats.outputs.run_type }}
+            📊 Status:  ${{ steps.stats.outputs.run_status }}
             
-            📈 *Test Results:*
+            📈 Test Results:
             ✅ Passed: ${{ steps.stats.outputs.passed_tests }}
             ❌ Failed: ${{ steps.stats.outputs.failed_tests }}
             ⚠️  Broken: ${{ steps.stats.outputs.broken_tests }}
@@ -130,14 +143,14 @@ jobs:
             📊 Total: ${{ steps.stats.outputs.total_tests }}
             🎯 Success Rate: ${{ steps.stats.outputs.success_rate }}%
             
-            🌐 *Allure Report:*
+            🌐 Allure Report:
             https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
             
-            🔗 *Workflow Details:*
+            🔗 Workflow Details:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
-            📝 *Branch:* ${{ github.ref_name }}
-            🏷️ *Commit:* ${{ github.event.head_commit.message }}
+            📝 Branch: ${{ github.ref_name }}
+            🏷️ Commit: ${{ github.event.head_commit.message }}
           parse_mode: markdown
 
       - name: Show Report URLs
