@@ -1,21 +1,38 @@
-name: PW Tests
-run-name: ${{ github.actor }} is running autotests 🚀
+name: CI-CD Pipeline
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main ]
 
 jobs:
-  run-tests:
+  build-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - run: npm ci
-      - run: npx playwright install --with-deps
-      - run: npx playwright test --list
-      - run: npx playwright test
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
+        run: npm run build
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: ${{ success() }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
         with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            rsync -avz --delete ./build/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/html
