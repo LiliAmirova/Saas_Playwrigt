@@ -16,7 +16,24 @@ jobs:
       pages: write
       id-token: write
 
+    env:
+      HOME: /home/runner
+
+
     steps:
+
+      # РЕШЕНИЕ: Добавляем GitHub в known_hosts перед checkout
+      - name: Add GitHub to SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo "✅ GitHub added to known_hosts"
+
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
 
       # РЕШЕНИЕ: Добавляем GitHub в known_hosts для SSH
       - name: Setup SSH for GitHub
@@ -26,9 +43,7 @@ jobs:
           ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
+      
 
       - name: Set up Python
         uses: actions/setup-python@v5
